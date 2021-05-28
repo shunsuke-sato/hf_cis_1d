@@ -34,9 +34,9 @@ subroutine initialize
   implicit none
   integer :: ix
 
-  R_dist = 2d0
-  length_x = 20d0
-  dx = 0.2d0
+  R_dist = 7.0d0
+  length_x = 40d0
+  dx = 0.15d0
   nx = nint(length_x/dx)
 
   write(*,*)'length_x =',length_x
@@ -113,10 +113,11 @@ end subroutine construct_kinetic_energy_operator
 subroutine hartree_fock
   use global_variables
   implicit none
+  real(8),parameter :: mixing_rate = 0.01d0
   real(8) :: Egs
-  integer :: iscf, nscf
+  integer :: iscf, nscf, ix
 
-  nscf = 100
+  nscf = 1000
 
 ! initial guess
   rho_gs = 0d0
@@ -127,11 +128,17 @@ subroutine hartree_fock
     call calc_hartree_fock_orbitals
 
 ! calc one-body density
-    rho_gs = phi_gs**2
+    rho_gs = mixing_rate*phi_gs**2 + (1d0-mixing_rate)*rho_gs
 
     call calc_gs_energy(Egs)
     write(*,"(A,2x,I7,e26.16e3)")'iscf, Egs=',iscf, Egs
   end do
+
+  open(20,file='phi_rho_x.out')
+  do ix = 1,nx
+    write(20,"(999e26.16e3)")xx(ix),phi_gs(ix),rho_gs(ix)
+  end do
+  close(20)
 
 end subroutine hartree_fock
 !-------------------------------------------------------------------------------
