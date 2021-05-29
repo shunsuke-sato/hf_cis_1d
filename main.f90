@@ -25,7 +25,7 @@ program main
 
   call initialize
   call hartree_fock
-
+  call tamm_dancoff
 
 end program main
 !-------------------------------------------------------------------------------
@@ -34,8 +34,8 @@ subroutine initialize
   implicit none
   integer :: ix
 
-  R_dist = 7.0d0
-  length_x = 40d0
+  R_dist = 8.0d0
+  length_x = 60d0
   dx = 0.15d0
   nx = nint(length_x/dx)
 
@@ -228,6 +228,83 @@ subroutine calc_gs_energy(Egs)
 
 
 end subroutine calc_gs_energy
+!-------------------------------------------------------------------------------
+subroutine tamm_dancoff
+  use global_variables
+  implicit none
+  real(8) :: ham_cis(nx,nx), hphi(nx),Egs
+  real(8) :: rho00(nx), rho_0j(nx), rho_jk(nx), rho_0k(nx)
+  real(8) :: vh00(nx), vh_0j(nx)
+  real(8) :: h00, hjk
+  integer :: j,k, nst_write
+!==LAPACK
+    integer :: nmax
+    integer :: lwork
+    real(8),allocatable :: work_lp(:)
+    real(8),allocatable :: rwork(:),w(:)
+    integer :: info
+
+    nmax = nx
+    lwork = 6*nmax**2
+    allocate(work_lp(lwork),rwork(3*nmax-2),w(nmax))
+!==LAPACK
+
+    ham_cis = 0d0
+    call calc_gs_energy(Egs)    
+    ham_cis(1,1) = Egs
+
+    hphi(:) = matmul(ham_sp_mat,hf_orbitals(:,1))
+    h00 = sum(hf_orbitals(:,1)*hphi(:))*dx
+
+    rho00 = hf_orbitals(:,1)**2
+    call calc_pot(rho00, vh00)
+
+    do j = 2, nx
+      hphi(:) = matmul(ham_sp_mat,hf_orbitals(:,j))
+      rho_0j(:) = hf_orbitals(:,1)*hf_orbitals(:,j)
+      call calc_pot(rho00, vh_0j)
+      do k = j, nx
+        ham_cis(j,k)= sum(hphi(:)*hf_orbitals(:,k))*dx
+        if(j == k)ham_cis(j,k)=ham_cis(j,k)+h00+1d0/R_dist
+
+        rho_jk = hf_orbitals(:,j)*hf_orbitals(:,k)
+        rho_0k = hf_orbitals(:,1)*hf_orbitals(:,k)
+        ham_cis(j,k)= ham_cis(j,k) + sum(vh00*rho_jk)*dx &
+                                   + sum(vh_0j*rho_0k)*dx
+
+        ham_cis(k,j)= ham_cis(j,k)
+      end do
+    end do
+
+    call dsyev('V', 'U', nmax, ham_cis, nmax, w, work_lp, lwork, info)
+
+
+!    nst_write = min(20,nx)
+
+    open(20,file='data_CIS.out')
+    write(20,"(999e26.16e3)")R_dist, w(1:min(20,nx))
+    close(20)
+
+
+    contains
+      subroutine calc_pot(rho_in, vpot_out)
+        implicit none
+        real(8),intent(in) :: rho_in(nx)
+        real(8),intent(out) :: vpot_out(nx)
+        integer :: ix, jx
+        real(8) :: ss
+        
+        do ix = 1,nx
+          ss = 0d0
+          do jx = 1,nx
+            ss = ss + rho_in(jx)*v_ee(abs(ix-jx))
+          end do
+          ss = ss*dx
+          vpot_out(ix) = ss
+        end do
+
+      end subroutine calc_pot
+end subroutine tamm_dancoff
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
