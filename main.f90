@@ -17,6 +17,9 @@ module global_variables
   real(8),allocatable :: ham_sp_mat(:,:)
   real(8),allocatable :: v_hx(:)
 
+! symmetrization
+  logical,parameter :: if_v_hx_symmetrize = .true.
+
 
 end module global_variables
 !-------------------------------------------------------------------------------
@@ -33,10 +36,11 @@ subroutine initialize
   use global_variables
   implicit none
   integer :: ix
+  real(8) :: ss
 
-  R_dist = 8.0d0
-  length_x = 60d0
-  dx = 0.15d0
+  R_dist = 2.0d0
+  length_x = 150d0
+  dx = 0.075d0
   nx = nint(length_x/dx)
 
   write(*,*)'length_x =',length_x
@@ -50,8 +54,11 @@ subroutine initialize
   allocate(hf_orbitals(nx,nx),ham_sp_mat(nx,nx))
 
   do ix = 1, nx
-    xx(ix) = dx*ix-0.5d0*length_x
+    xx(ix) = dx*ix
   end do
+! symmetrize
+  ss = sum(xx)/nx
+  xx = xx -ss
 
 ! construct interaction
   do ix = 0, nx
@@ -113,11 +120,11 @@ end subroutine construct_kinetic_energy_operator
 subroutine hartree_fock
   use global_variables
   implicit none
-  real(8),parameter :: mixing_rate = 0.01d0
+  real(8),parameter :: mixing_rate = 0.75d0
   real(8) :: Egs
   integer :: iscf, nscf, ix
 
-  nscf = 1000
+  nscf = 20
 
 ! initial guess
   rho_gs = 0d0
@@ -128,7 +135,9 @@ subroutine hartree_fock
     call calc_hartree_fock_orbitals
 
 ! calc one-body density
+    
     rho_gs = mixing_rate*phi_gs**2 + (1d0-mixing_rate)*rho_gs
+    if(iscf == 1)rho_gs = phi_gs**2
 
     call calc_gs_energy(Egs)
     write(*,"(A,2x,I7,e26.16e3)")'iscf, Egs=',iscf, Egs
@@ -146,7 +155,7 @@ end subroutine hartree_fock
 subroutine calc_hartree_fock_potential
   use global_variables
   implicit none
-  real(8) :: ss
+  real(8) :: ss, v_hx_tmp(nx)
   integer :: ix, jx
 
   v_hx = 0d0
@@ -160,6 +169,13 @@ subroutine calc_hartree_fock_potential
     v_hx(ix) = ss
   end do
 
+! symemtrize
+  if(if_v_hx_symmetrize)then
+    v_hx_tmp = v_hx
+    do ix = 1,nx
+      v_hx(ix) = 0.5d0*(v_hx_tmp(ix) + v_hx_tmp(nx+1-ix))
+    end do
+  end if
 
 end subroutine calc_hartree_fock_potential
 !-------------------------------------------------------------------------------
