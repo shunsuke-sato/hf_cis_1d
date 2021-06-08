@@ -90,16 +90,16 @@ subroutine construct_kinetic_energy_operator
   mass_p = 1836d0
   mass_e = 2d0*mass_p/(2d0*mass_p+1d0)
 
-  c0 = -0.5d0/(mass_e*dx**2)*(-5d0/2d0)
-  c1 = -0.5d0/(mass_e*dx**2)*(4d0/3d0)
-  c2 = -0.5d0/(mass_e*dx**2)*(-1d0/12d0)
+  c0 = -0.5d0/(mass_e*dx**2)*(-2d0)
+  c1 = -0.5d0/(mass_e*dx**2)*1d0
+!  c2 = -0.5d0/(mass_e*dx**2)*(-1d0/12d0)
 
   kinetic_op = 0d0
 
   do i = 1, nx
 
-    j = i-2
-    if(j>= 1 .and. j<= nx)kinetic_op(i,j)=c2
+!    j = i-2
+!    if(j>= 1 .and. j<= nx)kinetic_op(i,j)=c2
 
     j = i-1
     if(j>= 1 .and. j<= nx)kinetic_op(i,j)=c1
@@ -110,8 +110,8 @@ subroutine construct_kinetic_energy_operator
     j = i+1
     if(j>= 1 .and. j<= nx)kinetic_op(i,j)=c1
 
-    j = i+2
-    if(j>= 1 .and. j<= nx)kinetic_op(i,j)=c2
+!    j = i+2
+!    if(j>= 1 .and. j<= nx)kinetic_op(i,j)=c2
 
   end do
 
